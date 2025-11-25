@@ -1,0 +1,30 @@
+# Archivos de entorno (IMPORTANTE: protege contraseñas)
+.env
+.env.local
+.env.*.local
+
+# Datos de MySQL
+mysql/data/
+*.sql.gz
+
+# Datos de n8n
+n8n_data/
+
+# Logs
+*.log
+logs/
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDEs
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Docker
+docker-compose.override.yml

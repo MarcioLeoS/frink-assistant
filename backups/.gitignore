@@ -1,0 +1,4 @@
+# Backups de MySQL
+*.sql
+*.sql.gz
+*.sql.zip
