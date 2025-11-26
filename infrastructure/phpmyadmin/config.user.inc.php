@@ -14,8 +14,8 @@ $i++;
 $cfg['Servers'][$i]['host'] = 'mysql';
 $cfg['Servers'][$i]['port'] = '3306';
 $cfg['Servers'][$i]['auth_type'] = 'cookie';
-$cfg['Servers'][$i]['verbose'] = 'Frink App (frink_app)';
-$cfg['Servers'][$i]['only_db'] = array('frink_app');
+$cfg['Servers'][$i]['verbose'] = 'Frink App (frink_assistant_db)';
+$cfg['Servers'][$i]['only_db'] = array('frink_assistant_db');
 
 // Servidor 3: Acceso root (todas las bases)
 $i++;

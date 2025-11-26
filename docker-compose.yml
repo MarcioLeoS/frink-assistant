@@ -138,47 +138,6 @@ services:
     security_opt:
       - no-new-privileges:true
 
-  # Laravel Application (Frink Assistant Web)
-  web:
-    build:
-      context: ./web
-      dockerfile: Dockerfile
-    container_name: frink_web
-    restart: unless-stopped
-    depends_on:
-      mysql:
-        condition: service_healthy
-    environment:
-      # Laravel Database Config
-      DB_CONNECTION: mysql
-      DB_HOST: mysql
-      DB_PORT: 3306
-      DB_DATABASE: ${FRINK_DB}
-      DB_USERNAME: ${FRINK_DB_USER}
-      DB_PASSWORD: ${FRINK_DB_PASSWORD}
-      # Laravel Config
-      APP_NAME: "Frink Assistant"
-      APP_ENV: production
-      APP_KEY: ${LARAVEL_APP_KEY}
-      APP_DEBUG: "false"
-      APP_URL: http://localhost:${WEB_PORT:-8000}
-      # Sessions, Cache, Queue
-      SESSION_DRIVER: database
-      CACHE_STORE: database
-      QUEUE_CONNECTION: database
-      # Mail
-      MAIL_MAILER: log
-      # MercadoPago
-      MP_PUBLIC_KEY: ${MP_PUBLIC_KEY:-}
-      MP_ACCESS_TOKEN: ${MP_ACCESS_TOKEN:-}
-      PAYMENT_VALIDATION: ${PAYMENT_VALIDATION:-false}
-    ports:
-      - "${WEB_PORT:-8000}:80"
-    volumes:
-      - ./web/storage:/var/www/html/storage
-    security_opt:
-      - no-new-privileges:true
-
 volumes:
   mysql_data:
   n8n_data:
