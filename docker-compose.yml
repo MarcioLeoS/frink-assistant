@@ -150,10 +150,7 @@ services:
       - "${WAHA_PORT}:3000"
     environment:
       - WHATSAPP_HOOK_URL=${WAHA_WEBHOOK_URL}
-      - WAHA_LOG_LEVEL=info
-      - WAHA_SWAGGER_ENABLED=true
-      - WAHA_SWAGGER_USERNAME=${WAHA_USERNAME}
-      - WAHA_SWAGGER_PASSWORD=${WAHA_PASSWORD}
+      - WHATSAPP_API_KEY=${WAHA_API_KEY}
     volumes:
       - waha_data:/app/.sessions
     security_opt:
