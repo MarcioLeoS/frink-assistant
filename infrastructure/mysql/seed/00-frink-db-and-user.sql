@@ -1,11 +1,9 @@
 -- =========================================
 -- DATABASE & USER
 -- =========================================
-CREATE DATABASE IF NOT EXISTS frink_assistant_db
-  CHARACTER SET utf8mb4
-  COLLATE utf8mb4_unicode_ci;
+CREATE DATABASE IF NOT EXISTS frink_assistant_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
-CREATE USER IF NOT EXISTS 'frink_user'@'%' IDENTIFIED BY 'frinkpass_dev_2024';
+CREATE USER IF NOT EXISTS 'frink_user'@'%' IDENTIFIED BY 'frinkpass_dev646687658763458';
 GRANT ALL PRIVILEGES ON frink_assistant_db.* TO 'frink_user'@'%';
 GRANT SHOW DATABASES ON *.* TO 'frink_user'@'%';
 FLUSH PRIVILEGES;
