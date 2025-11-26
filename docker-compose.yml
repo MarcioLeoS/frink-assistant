@@ -151,6 +151,9 @@ services:
     environment:
       - WHATSAPP_HOOK_URL=${WAHA_WEBHOOK_URL}
       - WAHA_LOG_LEVEL=info
+      - WAHA_SWAGGER_ENABLED=true
+      - WAHA_SWAGGER_USERNAME=${WAHA_USERNAME}
+      - WAHA_SWAGGER_PASSWORD=${WAHA_PASSWORD}
     volumes:
       - waha_data:/app/.sessions
     security_opt:
