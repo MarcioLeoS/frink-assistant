@@ -174,3 +174,13 @@ docker exec -it frink_web php artisan migrate
 - **frink_assistant_db**: Gestionada por Laravel migrations (ver `web/database/migrations/`)
 
 Las migraciones de Laravel se ejecutan automáticamente al iniciar el contenedor `web` gracias al entrypoint del Dockerfile.
+
+### Workflows de n8n
+Los workflows en `n8n/workflows/` se montan automáticamente en n8n. Para importarlos:
+
+1. Acceder a n8n: http://localhost:5678
+2. Ir a **Workflows** → **Import from File**
+3. Seleccionar el archivo desde `/home/node/.n8n/workflows/frink-assistant-workflow.json`
+4. Activar el workflow
+
+Alternativamente, copiar workflows exportados a `n8n/workflows/` y reiniciar n8n.

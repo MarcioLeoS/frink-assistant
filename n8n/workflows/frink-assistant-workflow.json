@@ -1,0 +1,977 @@
+{
+  "name": "Customer Support",
+  "nodes": [
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Here is the query of user  {{ $json.body.message }}",
+        "options": {
+          "systemMessage": "=You are an AI assistant that classifies customer support queries coming from a WhatsApp webhook. Respond in spanish.\n\nThe incoming data usually contains:\n- a **phone number** (the customer's WhatsApp number)\n- a **message body** (the text the user sent)\n\nYour task is to:\n1. Understand the user's message (short, informal, with typos or emojis).\n2. Identify the **intent** behind the query.\n3. Extract any **mentioned product** or item.\n4. Try to detect an **order_id** (order number) if the user is asking about an order.\n5. Respond **only in strict JSON format**, with this shape:\n\n{\n  \"intent\": \"order_status\" | \"support_ticket\" | \"marketing_support_ticket\" | \"product_recommendation\" | \"general\",\n  \"product\": string | null,\n  \"order_id\": string | null,\n  \"phone\": string | null,\n  \"needs_order_id\": boolean\n}\n\n### Intent definitions\n\n- \"order_status\" → The user wants to track or ask about a purchase, delivery, shipping, or order update.\n- \"support_ticket\" → Complaints, issues, error messages, defects, or general help requests.\n- \"marketing_support_ticket\" -> When customer needs a commercial help.\n- \"product_recommendation\" → The user is asking for product suggestions, alternatives, or “something similar”.\n- \"general\" → Greetings, thanks, or messages that do not clearly fit in the above categories.\n\n### Order number logic\n\n- If the user clearly wants to **track an order** but you do **not** see any order number in the message:\n  - Set `\"intent\": \"order_status\"`\n  - Set `\"order_id\": null`\n  - Set `\"needs_order_id\": true`\n\n- If you find an order number in the text (e.g. \"ORD001\", \"pedido 12345\"):\n  - Set `\"intent\": \"order_status\"`\n  - Set `\"order_id\"` to that value\n  - Set `\"needs_order_id\": false`\n\nThe phone number might appear in the message or be provided separately by the system. If you see a phone number, put it in `\"phone\"`. If not, set `\"phone\": null`.\n\nIf the user did not ask about these things, still choose the most reasonable intent and use `\"general\"` when nothing else fits. Do **not** force classifications that make no sense.\n\n### Examples\n\nUser message: \"Hola, dónde está mi headset?\"\nOutput:\n{\n  \"intent\": \"order_status\",\n  \"product\": \"headset\",\n  \"order_id\": null,\n  \"phone\": null,\n  \"needs_order_id\": true\n}\n\n---\n\nUser message: \"Quiero ver el estado del pedido ORD001\"\nOutput:\n{\n  \"intent\": \"order_status\",\n  \"product\": null,\n  \"order_id\": \"ORD001\",\n  \"phone\": null,\n  \"needs_order_id\": false\n}\n\n---\n\nUser message: \"Mi teclado todavía no llegó, lo compré la semana pasada\"\nOutput:\n{\n  \"intent\": \"order_status\",\n  \"product\": \"keyboard\",\n  \"order_id\": null,\n  \"phone\": null,\n  \"needs_order_id\": true\n}\n\n---\n\nUser message: \"Necesito ayuda, mi mouse vino roto\"\nOutput:\n{\n  \"intent\": \"support_ticket\",\n  \"product\": \"mouse\",\n  \"order_id\": null,\n  \"phone\": null,\n  \"needs_order_id\": false\n}\n\n---\n\nUser message: \"Me recomendás algo similar a una gaming chair?\"\nOutput:\n{\n  \"intent\": \"product_recommendation\",\n  \"product\": \"gaming chair\",\n  \"order_id\": null,\n  \"phone\": null,\n  \"needs_order_id\": false\n}\n\n---\n\nUser message: \"Gracias por la ayuda!\"\nOutput:\n{\n  \"intent\": \"general\",\n  \"product\": null,\n  \"order_id\": null,\n  \"phone\": null,\n  \"needs_order_id\": false\n}\n"
+        }
+      },
+      "id": "2f755407-7565-4ad9-8d72-6fa9ebf1359c",
+      "name": "AI Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "position": [
+        -2304,
+        304
+      ],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini"
+        },
+        "options": {}
+      },
+      "id": "558f2bbf-db87-4381-89fd-0089bc24ea01",
+      "name": "OpenAI Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "position": [
+        -2304,
+        480
+      ],
+      "typeVersion": 1.2,
+      "credentials": {
+        "openAiApi": {
+          "id": "GwPKmSJ4LO0GUzRD",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Loop over input items and add a new field called 'myNewField' to the JSON of each one\nconst response = JSON.parse($input.first().json.output)\nreturn {\"category\":response}"
+      },
+      "id": "76c2120d-0b5e-4c76-afeb-baa77f9f8708",
+      "name": "Code",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        -2000,
+        304
+      ],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "version": 2,
+                  "leftValue": "",
+                  "caseSensitive": true,
+                  "typeValidation": "strict"
+                },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "id": "52528583-0e80-4335-aa15-660d2d500108",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "leftValue": "={{ $json.category.intent }}",
+                    "rightValue": "order_status"
+                  }
+                ]
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "version": 2,
+                  "leftValue": "",
+                  "caseSensitive": true,
+                  "typeValidation": "strict"
+                },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "id": "fb71b829-1006-4f9f-80ed-3458d5ce4b63",
+                    "operator": {
+                      "name": "filter.operator.equals",
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "leftValue": "={{ $json.category.intent }}",
+                    "rightValue": "product_recommendation"
+                  }
+                ]
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "version": 2,
+                  "leftValue": "",
+                  "caseSensitive": true,
+                  "typeValidation": "strict"
+                },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "id": "ec099566-32cf-408b-a502-7d0f6ca742f4",
+                    "operator": {
+                      "name": "filter.operator.equals",
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "leftValue": "={{ $json.category.intent }}",
+                    "rightValue": "support_ticket"
+                  }
+                ]
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "version": 2,
+                  "leftValue": "",
+                  "caseSensitive": true,
+                  "typeValidation": "strict"
+                },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "id": "d3ad5c59-2938-4fc6-ad0f-c9fec160c589",
+                    "operator": {
+                      "name": "filter.operator.equals",
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "leftValue": "={{ $json.category.intent }}",
+                    "rightValue": "general"
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "options": {
+          "allMatchingOutputs": true
+        }
+      },
+      "id": "8cedbd71-423f-4781-abf5-1b6fe246ac95",
+      "name": "Switch",
+      "type": "n8n-nodes-base.switch",
+      "position": [
+        -1792,
+        320
+      ],
+      "typeVersion": 3.2
+    },
+    {
+      "parameters": {
+        "content": "#### order_status\n#### product_recommendations\n#### support_ticket\n",
+        "height": 100
+      },
+      "id": "4b04e631-404d-43d4-a999-13ccf2783ab0",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -1840,
+        208
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=The query of the user is this .{{ $('Webhook').item.json.body.message }}",
+        "options": {
+          "systemMessage": "=You are a helpful AI assistant that handles customer support queries related to order tracking.  Respond in spanish.\n\nYour job is to:\n1. Understand the customer's query.\n2. Extract any useful details like:\n   - `order_id` (e.g., ORD001)\n   - `product` name (e.g., keyboard)\n   - `customer_name` (optional, fallback if no order_id is given)\n3. If the intent is to check order status, you MUST call the `getOrderStatus` tool with the extracted order_id or product.\n4. Wait for the result from the tool and then respond clearly with the order status and ETA.\n\n---\n\nExamples:\n\nUser: \"Where is my keyboard? I think it was order ORD001\"\n→ Extract:\n{\n  \"intent\": \"order_status\",\n  \"order_id\": \"ORD001\",\n  \"product\": \"keyboard\"\n}\n→ Then call: getOrderStatus(order_id = \"ORD001\")\n\n---\n\nUser: \"I ordered a mouse last week. When will it arrive?\"\n→ Extract:\n{\n  \"intent\": \"order_status\",\n  \"product\": \"mouse\"\n}\n→ Then ask about the order_id first then move further\n\n---\n\nUser: \"I haven’t received my microphone yet\"\n→ Extract:\n{\n  \"intent\": \"order_status\",\n  \"product\": \"microphone\"\n}\n→ Then call: getOrderStatus(product = \"microphone\")\n\n---\n\nIf you do not have enough information to look up the order, ask for the `order ID` or product name politely.\n\nALWAYS return your final answer to the user in natural, friendly language, after getting the result from `getOrderStatus`.\n\nThe result value should be of string .\n"
+        }
+      },
+      "id": "386f4cea-1979-44df-9714-f3ba01444417",
+      "name": "Order Queries",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "position": [
+        -1024,
+        -192
+      ],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini"
+        },
+        "options": {}
+      },
+      "id": "77cebca0-432d-4c6c-bdd9-85b844ed8f09",
+      "name": "OpenAI Chat Model1",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "position": [
+        -1008,
+        16
+      ],
+      "typeVersion": 1.2,
+      "credentials": {
+        "openAiApi": {
+          "id": "GwPKmSJ4LO0GUzRD",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('Webhook').item.json.body.phone_number }}",
+        "contextWindowLength": 7
+      },
+      "id": "b742bda6-9cdf-4474-b866-5e77cc6660f8",
+      "name": "Simple Memory",
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "position": [
+        -864,
+        16
+      ],
+      "typeVersion": 1.3
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $json.body.phone_number }}",
+        "contextWindowLength": 7
+      },
+      "id": "330d6107-003f-4cc8-a988-1e2842f500b0",
+      "name": "Simple Memory1",
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "position": [
+        -2112,
+        480
+      ],
+      "typeVersion": 1.3
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ JSON.stringify({\n  user_message: $('Webhook').item.json.body.message,\n  phone_e164: $('Webhook').item.json.body.phone_number,\n  pre_generated_ticket_id: $input.first().json.ticket_id\n}, null, 2) }}\n\n",
+        "options": {
+          "systemMessage": "=You are a smart and polite AI assistant that manages customer support tickets.\n\nLANGUAGE RULE:\n- All final messages to the user MUST be in Spanish.\n\n----------------------------------------------------------------------\nABSOLUTE OVERRIDING RULES (THESE HAVE PRIORITY OVER EVERYTHING ELSE)\n----------------------------------------------------------------------\n\n1) You MUST NEVER call getTicketStatus unless BOTH are true:\n   - The user explicitly requests the status of a ticket \n     (keywords: \"estado\", \"cómo va\", \"seguimiento\", \"update\", \"avance\")\n   - AND the user provides a valid ticket_id that begins with \"TKT-\"\n\n2) If no ticket_id was mentioned in user's message:\n   - You MUST NOT call getTicketStatus.\n   - You MUST NOT query support_tickets.\n   - You MUST NOT guess or infer a ticket_id.\n   - You MUST NOT check any ticket history.\n\n3) If user describes a broken product (example: \n   “no funciona el mouse”, “mi teclado murió”, “no prende”, etc.)\n   → ALWAYS treat as **new ticket creation**\n   → NEVER treat as ticket-status request.\n\n4) You MUST NEVER query support_tickets table for ANY reason unless rule #1 is triggered.\n   The ONLY allowed DB lookup in normal flow is:\n   → getCustomerByPhone\n   And ONLY once.\n\n5) If user is NOT explicitly asking for ticket status:\n   → DO NOT call getTicketStatus\n   → DO NOT look for tickets\n   → DO NOT check anything about old tickets\n   → DO NOT auto-detect status intentions\n\n6) If there is ANY ambiguity:\n   → ALWAYS default to **new ticket creation**.\n\n----------------------------------------------------------------------\nDATA INPUT RULES\n----------------------------------------------------------------------\n\nThe user message ALWAYS arrives in a JSON that YOU MUST parse:\n\n{\n  \"user_message\": \"...\",\n  \"phone_e164\": \"... or null\",\n  \"pre_generated_ticket_id\": \"... or null\"\n}\n\n- If phone_e164 is NOT null → You MUST use it.\n- You MUST NOT ask for the phone number again.\n- You MUST NOT ignore phone_e164.\n- pre_generated_ticket_id MUST be used as the ticket_id.\n\n----------------------------------------------------------------------\nTOOLS YOU ARE ALLOWED TO USE\n----------------------------------------------------------------------\n\n1) getCustomerByPhone(phone_e164)\n   - Only call ONCE.\n   - Returns array of customers.\n   - If result[0] exists:\n       customer_id = result[0].id\n       db_email = result[0].email (optional fallback)\n\n2) createSupportTicket(fields)\n   REQUIRED fields:\n     - ticket_id (from pre_generated_ticket_id)\n     - user_email\n     - product\n     - issue\n     - status = \"open\"\n   OPTIONAL:\n     - user_phone_e164\n     - customer_id (ONLY if numeric)\n\n3) getTicketStatus(ticket_id)\n   - ONLY allowed if rule #1 is true.\n\n----------------------------------------------------------------------\nFIELD EXTRACTION RULES\n----------------------------------------------------------------------\n\nFrom user_message:\n- Extract:\n  • user_email  (if present)\n  • product     (e.g. \"mouse\", \"teclado\")\n  • issue       (short description of problem)\n\nIf user_email missing:\n  Ask ONCE in Spanish:\n  “¿Me compartís tu correo electrónico?”\n\nIf product missing:\n  Ask ONCE in Spanish:\n  “¿Sobre qué producto es el problema?”\n\nIf issue missing:\n  Ask ONCE in Spanish:\n  “¿Podrías decirme brevemente qué problema estás teniendo?”\n\n----------------------------------------------------------------------\nTICKET CREATION RULES\n----------------------------------------------------------------------\n\nOnce all required fields are available:\n\nCall createSupportTicket with EXACT JSON fields:\n\n{\n  \"ticket_id\": pre_generated_ticket_id,\n  \"user_email\": \"...\",\n  \"product\": \"...\",\n  \"issue\": \"...\",\n  \"status\": \"open\",\n  \"user_phone_e164\": phone_e164 (if provided),\n  \"customer_id\": numeric_id (ONLY if found)\n}\n\nIMPORTANT:\n- NEVER insert the phone number into status.\n- NEVER insert the ticket_id into user_email.\n- NEVER send empty strings for numeric fields.\n- NEVER include customer_id unless it's a real integer.\n- NEVER rename fields.\n\n----------------------------------------------------------------------\nFALLBACK RULE\n----------------------------------------------------------------------\n\nIf after asking once you still don't have required data:\nRespond (in Spanish):\n\n“No tengo información suficiente para avanzar con el ticket. \nEnviame en un solo mensaje tu correo electrónico, el producto \ny una breve descripción del problema.”\n\n----------------------------------------------------------------------\nEND OF SYSTEM PROMPT\n"
+        }
+      },
+      "id": "a8243654-d11e-485d-b997-bbce534e55fb",
+      "name": "AI Agent1",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "position": [
+        -688,
+        672
+      ],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini"
+        },
+        "options": {}
+      },
+      "id": "52c9c43e-c60e-40bc-bc18-ff60eeeec25d",
+      "name": "handle support tickets",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "position": [
+        -800,
+        976
+      ],
+      "typeVersion": 1.2,
+      "credentials": {
+        "openAiApi": {
+          "id": "GwPKmSJ4LO0GUzRD",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('Webhook').item.json.body.phone_number }}",
+        "contextWindowLength": 7
+      },
+      "id": "53b07165-02af-4bca-96d5-71c7fbe5c680",
+      "name": "Simple Memory2",
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "position": [
+        -624,
+        976
+      ],
+      "typeVersion": 1.3
+    },
+    {
+      "parameters": {
+        "sendTo": "seharn314@gmail.com",
+        "subject": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Subject', ``, 'string') }}",
+        "message": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Message', ``, 'string') }}",
+        "options": {}
+      },
+      "id": "29767032-db64-4ebd-95d5-3e5cb2af92dd",
+      "name": "Send",
+      "type": "n8n-nodes-base.gmailTool",
+      "position": [
+        -176,
+        976
+      ],
+      "webhookId": "e234df90-5074-4e47-8982-f228df61d50c",
+      "typeVersion": 2.1,
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "REd10T3r3AMbJNKW",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=The query of the user is this . {{ $('Webhook').item.json.body.message }}",
+        "options": {
+          "systemMessage": "=You are a helpful and polite AI assistant that suggests similar or related products based on what the user is looking for.  Respond in spanish.\n\nYour job is to:\n1. Understand whether the user is asking for **product recommendations**, **similar items**, **suggestions**, or **alternatives**.\n2. Determine whether the user is referring to a **specific product** or a **product category**.\n3. Based on that:\n   - If the user refers to a **product name**, call the tool `getProductRecommendations` with the key `\"product\"`.\n   - If the user refers to a **product category**, call the tool `getCategoryRecommendations` with the key `\"category\"`.\n4. Wait for the tool response before replying.\n5. After receiving the tool result, present the recommended products in a helpful, friendly tone.\n\n---\n\n### 🔍 Input Understanding Rules\n\n- If the user says something like “Can you suggest something like a wireless mouse?”, interpret this as a **product-based recommendation**.\n  - Extract: `\"product\": \"wireless mouse\"`\n  - Call: `getProductRecommendations`\n\n- If the user says something like “What are some good accessories for laptops?” or “Suggest something in audio equipment,” interpret this as a **category-based recommendation**.\n  - Extract: `\"category\": \"laptop accessories\"` or `\"audio equipment\"` or `\"display\"` , `\"audio\"`\n  - Call: `getCategoryRecommendations`\n\n---\n\n### ⚠️ Missing Info Handling\n\nIf the user does not clearly mention a product or category, politely ask:\n> “Could you please tell me the product or category you’re interested in so I can recommend something useful?”\n\n---\n\n"
+        }
+      },
+      "id": "09e1c81b-a7b6-45d0-b74b-9a798e5fbcd4",
+      "name": "Recommendations",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "position": [
+        -704,
+        288
+      ],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini"
+        },
+        "options": {}
+      },
+      "id": "433b475b-0766-48d6-932c-f082a2e752d6",
+      "name": "OpenAI Chat Model2",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "position": [
+        -736,
+        480
+      ],
+      "typeVersion": 1.2,
+      "credentials": {
+        "openAiApi": {
+          "id": "GwPKmSJ4LO0GUzRD",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('Webhook').item.json.body.phone_number }}",
+        "contextWindowLength": 7
+      },
+      "id": "4bbf2851-fdf0-4f95-99e5-628c92afe672",
+      "name": "Simple Memory3",
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "position": [
+        -592,
+        496
+      ],
+      "typeVersion": 1.3
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "4cdaa2e9-be46-4f60-83f6-8d7bd4a6ad5d",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "b40a2238-ce74-49a5-b5f9-0ff5001a25df",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "position": [
+        -2512,
+        304
+      ],
+      "webhookId": "4cdaa2e9-be46-4f60-83f6-8d7bd4a6ad5d",
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"response\": \"{{ $json.output.replace(/[\\n\\r\\t]+/g, ' ').replace(/\\s{2,}/g, ' ').trim() }}\"\n}\n",
+        "options": {}
+      },
+      "id": "8596d256-09c4-454e-8269-21879d44509e",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "position": [
+        -672,
+        -192
+      ],
+      "typeVersion": 1.4
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"response\": \"{{ $json.output.replace(/[\\n\\r\\t]+/g, ' ').replace(/\\s{2,}/g, ' ').trim() }}\"\n}",
+        "options": {}
+      },
+      "id": "135b0f7b-0759-4fa9-ad52-b8b11d5061a4",
+      "name": "Respond to Webhook1",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "position": [
+        -304,
+        288
+      ],
+      "typeVersion": 1.4
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"response\": \"{{ $json.output.replace(/[\\n\\r\\t]+/g, ' ').replace(/\\s{2,}/g, ' ').trim() }}\"\n}\n",
+        "options": {}
+      },
+      "id": "c356cdd9-f928-4eb6-8d8a-d30877093e68",
+      "name": "Respond to Webhook2",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "position": [
+        -272,
+        672
+      ],
+      "typeVersion": 1.4
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"response\": \"{{ $json.category.product }}\"\n}",
+        "options": {}
+      },
+      "id": "6a5fa485-2537-4c33-bf1f-c47bf93ecc8d",
+      "name": "Respond to Webhook3",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "position": [
+        -1584,
+        768
+      ],
+      "typeVersion": 1.4
+    },
+    {
+      "parameters": {
+        "operation": "select",
+        "table": {
+          "__rl": true,
+          "mode": "list",
+          "value": "orders",
+          "cachedResultName": "orders"
+        },
+        "limit": 1000,
+        "options": {}
+      },
+      "id": "e8de9bcc-5c07-4f24-ab54-e16541f252f8",
+      "name": "Select rows from a table in MySQL1",
+      "type": "n8n-nodes-base.mySqlTool",
+      "position": [
+        -720,
+        16
+      ],
+      "typeVersion": 2.5,
+      "credentials": {
+        "mySql": {
+          "id": "zrUZ2IvrdiSvPEvp",
+          "name": "MySQL account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "table": {
+          "__rl": true,
+          "mode": "list",
+          "value": "support_tickets",
+          "cachedResultName": "support_tickets"
+        },
+        "dataMode": "defineBelow",
+        "valuesToSend": {
+          "values": [
+            {
+              "column": "customer_id",
+              "value": "={{ $json.id }}"
+            },
+            {
+              "column": "ticket_id",
+              "value": "={{ $('Set ticket_id').item.json.ticket_id }}"
+            },
+            {
+              "column": "user_email",
+              "value": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('values2_Value', `User’s email extracted from the input message or from the customer record (if available). Must contain only a valid email address.`, 'string') }}"
+            },
+            {
+              "column": "user_phone_e164",
+              "value": "={{ $('Webhook').item.json.body.phone_number }}"
+            },
+            {
+              "column": "product",
+              "value": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('values4_Value', `Name of the product related to the issue, extracted from the user message. Must be only the product name (e.g., ‘mouse’, ‘keyboard’). Its dosnt escential.`, 'string') }}"
+            },
+            {
+              "column": "issue",
+              "value": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('values5_Value', `Optional additional information extracted from the user’s message. \nThis must be a short, cleaned-up summary of the issue, not a copy of the original message. \nDo NOT repeat the product name, email, phone, or any field already stored in other columns. \nFocus only on clarifying the context of the problem in 1–2 concise sentences. \nRewrite the user's description in clearer language (English or Spanish depending on input), \nbut avoid adding assumptions or inventing details.`, 'string') }}"
+            },
+            {
+              "column": "status",
+              "value": "open"
+            },
+            {
+              "column": "ticket_type",
+              "value": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('values7_Value', `Ticket category such as: 'order_issue','product_issue','general_question','technical_support','other'. Should be one short label describing the type of request.`, 'string') }}"
+            },
+            {
+              "column": "detail",
+              "value": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('values8_Value', `Optional additional information extracted from the user message. Must be plain text, not repeated or duplicated fields.`, 'string') }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "eac560df-99e1-49a7-9c5a-dd3ea6df3b7b",
+      "name": "Insert rows in a table in MySQL",
+      "type": "n8n-nodes-base.mySqlTool",
+      "position": [
+        -384,
+        976
+      ],
+      "typeVersion": 2.5,
+      "credentials": {
+        "mySql": {
+          "id": "zrUZ2IvrdiSvPEvp",
+          "name": "MySQL account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "select",
+        "table": {
+          "__rl": true,
+          "mode": "list",
+          "value": "support_tickets",
+          "cachedResultName": "support_tickets"
+        },
+        "limit": 1000,
+        "options": {}
+      },
+      "id": "55d71b48-f5ec-4098-9918-5feb241f0dff",
+      "name": "Select rows from a table in MySQL2",
+      "type": "n8n-nodes-base.mySqlTool",
+      "position": [
+        0,
+        976
+      ],
+      "typeVersion": 2.5,
+      "credentials": {
+        "mySql": {
+          "id": "zrUZ2IvrdiSvPEvp",
+          "name": "MySQL account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "select",
+        "table": {
+          "__rl": true,
+          "mode": "list",
+          "value": "products",
+          "cachedResultName": "products"
+        },
+        "limit": 1000,
+        "options": {}
+      },
+      "id": "443a8ad4-1f8d-40be-b3f0-9ba3c0437f09",
+      "name": "Select products recommendation",
+      "type": "n8n-nodes-base.mySqlTool",
+      "position": [
+        -256,
+        496
+      ],
+      "typeVersion": 2.5,
+      "credentials": {
+        "mySql": {
+          "id": "zrUZ2IvrdiSvPEvp",
+          "name": "MySQL account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "select",
+        "table": {
+          "__rl": true,
+          "mode": "list",
+          "value": "categories",
+          "cachedResultName": "categories"
+        },
+        "limit": 1000,
+        "options": {}
+      },
+      "id": "c6729172-6a28-43ef-a22a-592b980571ef",
+      "name": "Select categories recommendation",
+      "type": "n8n-nodes-base.mySqlTool",
+      "position": [
+        -432,
+        496
+      ],
+      "typeVersion": 2.5,
+      "credentials": {
+        "mySql": {
+          "id": "zrUZ2IvrdiSvPEvp",
+          "name": "MySQL account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "return {\n  ticket_id: `TKT-${new Date().toISOString().slice(0,10).replace(/-/g,'')}-${Math.floor(1000 + Math.random() * 9000)}`\n}\n"
+      },
+      "id": "244e66de-8dae-4783-ba4d-bd61366e9573",
+      "name": "Set ticket_id",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        -1424,
+        544
+      ],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "operation": "select",
+        "table": {
+          "__rl": true,
+          "mode": "list",
+          "value": "customers",
+          "cachedResultName": "customers"
+        },
+        "limit": 1,
+        "where": {
+          "values": [
+            {
+              "column": "phone_e164",
+              "condition": "LIKE",
+              "value": "={{ $('Webhook').item.json.body.phone_number }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "dded6ae5-188a-4f9a-841a-52dc1ac2d70b",
+      "name": "getCustomerData",
+      "type": "n8n-nodes-base.mySql",
+      "position": [
+        -1024,
+        608
+      ],
+      "typeVersion": 2.5,
+      "credentials": {
+        "mySql": {
+          "id": "zrUZ2IvrdiSvPEvp",
+          "name": "MySQL account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "Order Queries",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Recommendations",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Set ticket_id",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond to Webhook3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent1": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Order Queries": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set ticket_id": {
+      "main": [
+        [
+          {
+            "node": "getCustomerData",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "Order Queries",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory1": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory2": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory3": {
+      "ai_memory": [
+        [
+          {
+            "node": "Recommendations",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Recommendations": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "getCustomerData": {
+      "main": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Order Queries",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model2": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Recommendations",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "handle support tickets": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Select products recommendation": {
+      "ai_tool": [
+        [
+          {
+            "node": "Recommendations",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert rows in a table in MySQL": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Select categories recommendation": {
+      "ai_tool": [
+        [
+          {
+            "node": "Recommendations",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Select rows from a table in MySQL1": {
+      "ai_tool": [
+        [
+          {
+            "node": "Order Queries",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Select rows from a table in MySQL2": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "b4b7afe3-4ee9-4724-be96-76a68de49023",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "7a8bfdcde05aa07b02d7bd70dc30a417713969cabf0daa5b51498a5a5c732f34"
+  },
+  "id": "9eS9Pdn2o3Zp4aEs",
+  "tags": []
+}

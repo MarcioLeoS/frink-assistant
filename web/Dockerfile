@@ -1,12 +1,14 @@
-# --- 1) Composer deps ---
 FROM composer:2 AS vendor
 WORKDIR /app
 COPY composer.json composer.lock ./
-RUN composer install --no-dev --prefer-dist --no-progress --no-interaction --optimize-autoloader
-COPY . .
-RUN composer install --no-dev --prefer-dist --no-progress --no-interaction --optimize-autoloader
+COPY artisan ./
+COPY app ./app
+COPY bootstrap ./bootstrap
+COPY config ./config
+COPY database ./database
+COPY routes ./routes
+RUN composer install --no-dev --prefer-dist --no-progress --no-interaction --optimize-autoloader --ignore-platform-reqs
 
-# --- 2) Vite build (Node) ---
 FROM node:20-alpine AS frontend
 WORKDIR /app
 COPY package*.json ./
@@ -14,10 +16,8 @@ RUN npm ci
 COPY . .
 RUN npm run build
 
-# --- 3) Runtime: Apache + PHP 8.3 ---
-FROM php:8.3-apache
+FROM php:8.3.14-apache
 
-# Extensiones + Apache
 RUN apt-get update && apt-get install -y \
     libpng-dev libjpeg62-turbo-dev libfreetype6-dev libzip-dev unzip git \
  && docker-php-ext-configure gd --with-freetype --with-jpeg \
@@ -25,7 +25,6 @@ RUN apt-get update && apt-get install -y \
  && a2enmod rewrite \
  && rm -rf /var/lib/apt/lists/*
 
-# DocumentRoot -> /public
 ENV APACHE_DOCUMENT_ROOT=/var/www/html/public
 RUN sed -ri "s#DocumentRoot /var/www/html#DocumentRoot ${APACHE_DOCUMENT_ROOT}#g" /etc/apache2/sites-available/000-default.conf \
  && sed -ri "s#<Directory /var/www/>#<Directory ${APACHE_DOCUMENT_ROOT}/>#g" /etc/apache2/apache2.conf \
@@ -33,22 +32,14 @@ RUN sed -ri "s#DocumentRoot /var/www/html#DocumentRoot ${APACHE_DOCUMENT_ROOT}#g
 
 WORKDIR /var/www/html
 
-# Copiamos código de la app
-COPY . .
+COPY --from=vendor /app/vendor ./vendor
+COPY --chown=www-data:www-data . .
+COPY --from=frontend --chown=www-data:www-data /app/public/build ./public/build
 
-# Copiamos vendor y los assets de Vite (solo /build para no pisar otros archivos de public)
-COPY --from=vendor   /app/vendor           ./vendor
-COPY --from=frontend /app/public/build     ./public/build
+RUN rm -rf bootstrap/cache/*.php
 
-# Copiamos el .env del repo dentro de la imagen
-# (asegurate de tener frink-assistant-web/.env presente al build)
-COPY .env ./.env
-
-# Permisos y descubrir paquetes
 RUN chown -R www-data:www-data /var/www/html \
  && php artisan package:discover --ansi || true
-
-# -------- EntryPoint: espera MySQL + migra + storage:link --------
 RUN printf '%s\n' '#!/usr/bin/env bash' \
 'set -e' \
 'cd /var/www/html' \
