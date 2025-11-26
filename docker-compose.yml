@@ -97,6 +97,7 @@ services:
       - "${PMA_PORT}:80"
     volumes:
       - ./infrastructure/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./infrastructure/nginx/.htpasswd:/etc/nginx/.htpasswd:ro
     environment:
       - NGINX_HOST=localhost
       - NGINX_PORT=80
