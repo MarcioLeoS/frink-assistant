@@ -40,7 +40,8 @@ services:
         condition: service_healthy
     environment:
       TZ: ${TZ}
-      WEBHOOK_URL: "http://localhost:${N8N_PORT}"
+      WEBHOOK_URL: "${N8N_WEBHOOK_URL}"
+      N8N_EDITOR_BASE_URL: "${N8N_EDITOR_BASE_URL}"
       DB_TYPE: mysqldb
       DB_MYSQLDB_HOST: mysql
       DB_MYSQLDB_PORT: 3306
@@ -54,7 +55,7 @@ services:
       N8N_BLOCK_ENV_ACCESS_IN_NODE: "true"
       N8N_SECURE_COOKIE: "false"  # Cambiar a true en producción con HTTPS
     ports:
-      - "${N8N_PORT}:5678"
+      - "80:5678"
     volumes:
       - n8n_data:/home/node/.n8n
       - ./n8n/workflows:/home/node/.n8n/workflows:ro
@@ -85,7 +86,7 @@ services:
     security_opt:
       - no-new-privileges:true
 
-  # Nginx con autenticación HTTP básica (seguridad para producción)
+  # Nginx proxy para phpMyAdmin
   nginx-pma:
     image: nginx:alpine
     container_name: nginx_pma_frink
@@ -96,7 +97,6 @@ services:
       - "${PMA_PORT}:80"
     volumes:
       - ./infrastructure/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./infrastructure/nginx/.htpasswd:/etc/nginx/.htpasswd:ro
     environment:
       - NGINX_HOST=localhost
       - NGINX_PORT=80
