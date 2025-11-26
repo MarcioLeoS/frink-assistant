@@ -1,0 +1,10 @@
+.accordion-content-custom {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.4s cubic-bezier(0.87, 0, 0.13, 1), opacity 0.3s;
+  opacity: 0;
+}
+.accordion-content-custom.open {
+  max-height: 500px; /* Ajusta según el contenido máximo esperado */
+  opacity: 1;
+}

@@ -1,0 +1,1 @@
+export const BASE_URL = import.meta.env.VITE_APP_URL || "http://localhost/frink-assistant-web/public";

@@ -28,3 +28,26 @@ desktop.ini
 
 # Docker
 docker-compose.override.yml
+
+# Laravel
+web/vendor/
+web/node_modules/
+web/.env
+web/.env.backup
+web/.env.production
+web/storage/*.key
+web/storage/pail
+web/public/hot
+web/public/storage
+web/public/build
+web/.phpunit.result.cache
+web/.phpactor.json
+web/auth.json
+web/bootstrap/cache/*
+!web/bootstrap/cache/.gitkeep
+
+# Composer & NPM
+**/vendor/
+**/node_modules/
+composer.lock
+package-lock.json
