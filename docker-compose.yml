@@ -141,6 +141,22 @@ services:
     security_opt:
       - no-new-privileges:true
 
+  # WAHA - WhatsApp HTTP API
+  waha:
+    image: devlikeapro/waha
+    container_name: waha_frink
+    restart: unless-stopped
+    ports:
+      - "${WAHA_PORT}:3000"
+    environment:
+      - WHATSAPP_HOOK_URL=${WAHA_WEBHOOK_URL}
+      - WAHA_LOG_LEVEL=info
+    volumes:
+      - waha_data:/app/.sessions
+    security_opt:
+      - no-new-privileges:true
+
 volumes:
   mysql_data:
   n8n_data:
+  waha_data:
