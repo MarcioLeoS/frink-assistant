@@ -144,7 +144,7 @@ services:
 
   # WAHA - WhatsApp HTTP API
   waha:
-    image: devlikeapro/waha
+    image: devlikeapro/waha:latest
     container_name: waha_frink
     restart: unless-stopped
     ports:
@@ -152,6 +152,9 @@ services:
     environment:
       - WHATSAPP_HOOK_URL=${WAHA_WEBHOOK_URL}
       - WHATSAPP_API_KEY=${WAHA_API_KEY}
+      - WAHA_DASHBOARD_ENABLED=true
+      - WAHA_DASHBOARD_USERNAME=${WAHA_DASHBOARD_USERNAME}
+      - WAHA_DASHBOARD_PASSWORD=${WAHA_DASHBOARD_PASSWORD}
     volumes:
       - waha_data:/app/.sessions
     security_opt:
