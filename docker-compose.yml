@@ -54,6 +54,11 @@ services:
       # Seguridad adicional n8n
       N8N_BLOCK_ENV_ACCESS_IN_NODE: "true"
       N8N_SECURE_COOKIE: "false"  # Cambiar a true en producción con HTTPS
+      # Trust proxy headers from Cloudflare
+      N8N_PROXY_HOPS: "1"
+      # Performance
+      N8N_METRICS: "false"
+      N8N_LOG_LEVEL: "info"
     ports:
       - "80:5678"
     volumes:
@@ -155,6 +160,9 @@ services:
       - WAHA_DASHBOARD_ENABLED=true
       - WAHA_DASHBOARD_USERNAME=${WAHA_DASHBOARD_USERNAME}
       - WAHA_DASHBOARD_PASSWORD=${WAHA_DASHBOARD_PASSWORD}
+      # Persistencia y auto-reconexión
+      - WAHA_START_SESSION=${WAHA_START_SESSION}
+      - WAHA_RESTART_ALL_SESSIONS=${WAHA_RESTART_ALL_SESSIONS}
     volumes:
       - waha_data:/app/.sessions
     security_opt:
